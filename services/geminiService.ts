@@ -1,14 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ServiceType } from "../types";
 
-// NOTE: Ensure REACT_APP_GEMINI_API_KEY is set in your .env
-const apiKey = process.env.API_KEY || process.env.REACT_APP_GEMINI_API_KEY;
-
-let ai: GoogleGenAI | null = null;
-if (apiKey) {
-  ai = new GoogleGenAI({ apiKey });
-}
-
 export interface AIAnalysisResult {
   suggestedService: ServiceType;
   shortSummary: string;
@@ -19,15 +11,15 @@ export const analyzeVehicleIssue = async (
   vehicleType: string, 
   issueDescription: string
 ): Promise<AIAnalysisResult | null> => {
-  if (!ai) {
+  if (!process.env.API_KEY) {
     console.warn("Gemini API Key not found. Skipping AI analysis.");
     return null;
   }
 
   try {
-    const model = 'gemini-2.5-flash';
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const prompt = `
-      You are an expert mechanic AI assistant for a roadside assistance app.
+      You are an expert mechanic AI assistant for a roadside assistance app called Mech On Wheels.
       
       Vehicle Type: ${vehicleType}
       User Issue Description: "${issueDescription}"
@@ -41,8 +33,8 @@ export const analyzeVehicleIssue = async (
     `;
 
     const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
+      model: 'gemini-3-flash-preview',
+      contents: [{ parts: [{ text: prompt }] }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -50,17 +42,26 @@ export const analyzeVehicleIssue = async (
           properties: {
             suggestedService: {
               type: Type.STRING,
+              description: "The suggested service type",
               enum: ['onsite_repair', 'towing', 'fuel_delivery']
             },
-            shortSummary: { type: Type.STRING },
-            estimatedCostRange: { type: Type.STRING }
-          }
+            shortSummary: { 
+              type: Type.STRING,
+              description: "A short 1-sentence summary of the diagnosis"
+            },
+            estimatedCostRange: { 
+              type: Type.STRING,
+              description: "Estimated cost range in USD"
+            }
+          },
+          required: ["suggestedService", "shortSummary", "estimatedCostRange"]
         }
       }
     });
 
-    if (response.text) {
-        return JSON.parse(response.text) as AIAnalysisResult;
+    const text = response.text;
+    if (text) {
+        return JSON.parse(text) as AIAnalysisResult;
     }
     return null;
 

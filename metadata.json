@@ -1,5 +1,7 @@
 {
   "name": "Mech On Wheels",
   "description": "A lightweight roadside assistance app connecting stranded vehicle owners with nearby mechanics and towing partners.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "geolocation"
+  ]
 }
